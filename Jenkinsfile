@@ -38,8 +38,12 @@ pipeline {
                 script {
                     def branchName = env.GIT_BRANCH.split('/')[1]
                     def port = branchName == 'main' ? 80 : 8081
-                    sh "docker stop ${branchName} || true && docker rm ${branchName} || true"
-                    sh "docker run -d -p ${port}:3000 --name ${branchName} ${REPO}:${branchName}"
+                    // Using 'bat' command for Windows compatibility
+                    bat """
+                        docker stop ${branchName} || exit 0
+                        docker rm ${branchName} || exit 0
+                        docker run -d -p ${port}:3000 --name ${branchName} ${REPO}:${branchName}
+                    """
                 }
             }
         }
