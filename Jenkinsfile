@@ -8,7 +8,13 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: env.GIT_BRANCH, url: 'https://github.com/Viswaraje/nodejs-web-app.git'
+                script {
+                    // Ensure the branch name is formatted correctly
+                    def branchName = env.GIT_BRANCH ? env.GIT_BRANCH.replace('refs/heads/', '') : 'main'
+                    
+                    // Checkout the correct branch
+                    git branch: branchName, url: 'https://github.com/Viswaraje/nodejs-web-app.git'
+                }
             }
         }
 
