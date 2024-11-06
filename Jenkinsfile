@@ -8,14 +8,17 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: env.GIT_BRANCH, url: 'https://github.com/Viswaraje/nodejs-web-app.git'
+                script {
+                    def branchName = env.GIT_BRANCH ?: 'main' // Ensure branch is set
+                    git branch: branchName, url: 'https://github.com/Viswaraje/nodejs-web-app.git'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    def branchName = env.GIT_BRANCH.split('/')[1]
+                    def branchName = env.GIT_BRANCH.replace('refs/heads/', '')
                     def envType = branchName == 'main' ? 'production' : 'staging'
                     docker.build("${REPO}:${branchName}", "--build-arg NODE_ENV=${envType} .")
                 }
@@ -26,7 +29,7 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('', 'docker-viswaraje') {
-                        def branchName = env.GIT_BRANCH.split('/')[1]
+                        def branchName = env.GIT_BRANCH.replace('refs/heads/', '')
                         docker.image("${REPO}:${branchName}").push()
                     }
                 }
@@ -36,14 +39,21 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    def branchName = env.GIT_BRANCH.split('/')[1]
+                    def branchName = env.GIT_BRANCH.replace('refs/heads/', '')
                     def port = branchName == 'main' ? 80 : 8081
-                    // Using 'bat' command for Windows compatibility
-                    bat """
-                        docker stop ${branchName} || exit 0
-                        docker rm ${branchName} || exit 0
-                        docker run -d -p ${port}:3000 --name ${branchName} ${REPO}:${branchName}
-                    """
+                    if (isUnix()) {
+                        sh """
+                            docker stop ${branchName} || exit 0
+                            docker rm ${branchName} || exit 0
+                            docker run -d -p ${port}:3000 --name ${branchName} ${REPO}:${branchName}
+                        """
+                    } else {
+                        bat """
+                            docker stop ${branchName} || exit 0
+                            docker rm ${branchName} || exit 0
+                            docker run -d -p ${port}:3000 --name ${branchName} ${REPO}:${branchName}
+                        """
+                    }
                 }
             }
         }
